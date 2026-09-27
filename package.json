@@ -1,0 +1,20 @@
+{
+  "name": "tracegrid",
+  "version": "0.1.0",
+  "description": "TraceGrid — universal full-stack visual lineage and architectural compiler",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace=packages/core && npm run build --workspace=packages/cli",
+    "build:core": "npm run build --workspace=packages/core",
+    "build:cli": "npm run build --workspace=packages/cli",
+    "test": "npm run test --workspace=packages/core",
+    "clean": "node -e \"require('fs').rmSync('packages/core/dist',{recursive:true,force:true}); require('fs').rmSync('packages/cli/dist',{recursive:true,force:true})\""
+  },
+  "devDependencies": {
+    "typescript": "^5.5.2"
+  }
+}

@@ -1,0 +1,33 @@
+﻿# Dependencies
+node_modules/
+
+# TypeScript build output
+packages/core/dist/
+packages/cli/dist/
+packages/core/tsconfig.tsbuildinfo
+packages/cli/tsconfig.tsbuildinfo
+
+# npm
+package-lock.json
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test coverage
+coverage/

@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TraceGrid — Full-Stack Visual Lineage Compiler</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #21262d;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent2: #bc8cff;
+    --green: #3fb950;
+    --orange: #f0883e;
+    --red: #ff7b72;
+    --db-color: #3fb950;
+    --api-color: #58a6ff;
+    --fe-color: #bc8cff;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1.7;
+  }
+
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* NAV */
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(13,17,23,0.92);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+  }
+  .nav-logo {
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--text);
+    letter-spacing: -0.3px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .nav-logo .logo-icon {
+    width: 28px; height: 28px;
+    background: linear-gradient(135deg, var(--db-color) 0%, var(--api-color) 50%, var(--fe-color) 100%);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 900; color: #0d1117;
+  }
+  .nav-links { display: flex; gap: 1.5rem; font-size: 14px; }
+  .nav-links a { color: var(--muted); }
+  .nav-links a:hover { color: var(--text); text-decoration: none; }
+  .nav-btn {
+    background: var(--accent);
+    color: #0d1117;
+    padding: 6px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .nav-btn:hover { background: #79c0ff; text-decoration: none; }
+
+  /* SECTIONS */
+  section { padding: 80px 2rem; }
+  .container { max-width: 1040px; margin: 0 auto; }
+
+  /* HERO */
+  .hero {
+    text-align: center;
+    padding: 100px 2rem 80px;
+    background: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(88,166,255,0.10) 0%, transparent 70%);
+  }
+  .hero-badge {
+    display: inline-block;
+    background: rgba(88,166,255,0.12);
+    color: var(--accent);
+    border: 1px solid rgba(88,166,255,0.3);
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 24px;
+  }
+  .hero h1 {
+    font-size: clamp(2.2rem, 5vw, 3.6rem);
+    font-weight: 800;
+    letter-spacing: -1px;
+    line-height: 1.15;
+    margin-bottom: 20px;
+  }
+  .hero h1 span.grad {
+    background: linear-gradient(90deg, var(--db-color), var(--api-color), var(--fe-color));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero p {
+    font-size: 1.15rem;
+    color: var(--muted);
+    max-width: 640px;
+    margin: 0 auto 36px;
+  }
+  .hero-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn-primary {
+    background: var(--accent);
+    color: #0d1117;
+    padding: 12px 28px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 15px;
+  }
+  .btn-primary:hover { background: #79c0ff; text-decoration: none; }
+  .btn-secondary {
+    background: var(--surface2);
+    color: var(--text);
+    padding: 12px 28px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 15px;
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { background: var(--surface); text-decoration: none; }
+
+  /* CANVAS DIAGRAM */
+  .canvas-diagram {
+    display: grid;
+    grid-template-columns: 1fr 40px 1fr 40px 1fr;
+    align-items: stretch;
+    gap: 0;
+    margin: 48px auto 0;
+    max-width: 900px;
+  }
+  .canvas-col {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    min-height: 220px;
+  }
+  .canvas-col-header {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .canvas-col:nth-child(1) .canvas-col-header { color: var(--db-color); }
+  .canvas-col:nth-child(3) .canvas-col-header { color: var(--api-color); }
+  .canvas-col:nth-child(5) .canvas-col-header { color: var(--fe-color); }
+  .canvas-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    font-size: 20px;
+  }
+  .db-entity {
+    background: var(--surface2);
+    border: 1px solid rgba(63,185,80,0.3);
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    font-size: 13px;
+    font-family: "SF Mono", Consolas, monospace;
+  }
+  .db-entity .entity-name { color: var(--db-color); font-weight: 600; }
+  .db-entity .entity-fk { color: var(--muted); font-size: 11px; margin-top: 2px; }
+  .db-edge {
+    font-size: 11px;
+    color: var(--muted);
+    padding: 2px 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .db-edge::before { content: "↳"; color: var(--db-color); }
+  .api-route {
+    background: var(--surface2);
+    border: 1px solid rgba(88,166,255,0.25);
+    border-radius: 6px;
+    padding: 7px 12px;
+    margin-bottom: 7px;
+    font-size: 12px;
+    font-family: "SF Mono", Consolas, monospace;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .method { font-weight: 700; font-size: 10px; border-radius: 3px; padding: 2px 5px; }
+  .method.get { background: rgba(63,185,80,0.2); color: var(--green); }
+  .method.post { background: rgba(88,166,255,0.2); color: var(--accent); }
+  .method.put { background: rgba(240,136,62,0.2); color: var(--orange); }
+  .method.delete { background: rgba(255,123,114,0.2); color: var(--red); }
+  .method.patch { background: rgba(188,140,255,0.2); color: var(--accent2); }
+  .fe-comp {
+    background: var(--surface2);
+    border: 1px solid rgba(188,140,255,0.25);
+    border-radius: 6px;
+    padding: 7px 12px;
+    margin-bottom: 7px;
+    font-size: 12px;
+    font-family: "SF Mono", Consolas, monospace;
+    color: var(--fe-color);
+  }
+  .fe-comp .fe-call { color: var(--muted); font-size: 11px; margin-top: 2px; }
+
+  /* SECTION TITLES */
+  .section-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--accent);
+    margin-bottom: 12px;
+  }
+  h2.section-title {
+    font-size: clamp(1.6rem, 3vw, 2.2rem);
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin-bottom: 16px;
+  }
+  .section-sub {
+    color: var(--muted);
+    max-width: 600px;
+    margin-bottom: 48px;
+    font-size: 1.05rem;
+  }
+
+  /* MODES */
+  #modes { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+
+  .modes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+  }
+  .mode-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+  }
+  .mode-icon {
+    width: 40px; height: 40px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    margin-bottom: 14px;
+  }
+  .mode-icon.green { background: rgba(63,185,80,0.15); }
+  .mode-icon.blue { background: rgba(88,166,255,0.15); }
+  .mode-icon.purple { background: rgba(188,140,255,0.15); }
+  .mode-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
+  .mode-card p { font-size: 14px; color: var(--muted); line-height: 1.6; }
+  .mode-badge {
+    display: inline-block;
+    margin-top: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 4px;
+    padding: 3px 8px;
+  }
+  .mode-badge.green { background: rgba(63,185,80,0.12); color: var(--green); }
+  .mode-badge.blue { background: rgba(88,166,255,0.12); color: var(--accent); }
+  .mode-badge.purple { background: rgba(188,140,255,0.12); color: var(--accent2); }
+
+  /* CLI */
+  .cli-tabs { display: flex; gap: 4px; margin-bottom: -1px; }
+  .cli-tab {
+    padding: 8px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 6px 6px 0 0;
+    border: 1px solid var(--border);
+    border-bottom: none;
+    background: var(--surface2);
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .cli-tab.active { background: var(--surface); color: var(--text); border-color: var(--border); }
+  .cli-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0 8px 8px 8px;
+    padding: 24px;
+    display: none;
+  }
+  .cli-block.active { display: block; }
+  pre {
+    font-family: "SF Mono", Consolas, "Courier New", monospace;
+    font-size: 13px;
+    line-height: 1.8;
+    overflow-x: auto;
+    tab-size: 2;
+  }
+  .cmd { color: var(--accent); }
+  .flag { color: var(--orange); }
+  .comment { color: var(--muted); }
+  .str { color: var(--green); }
+  .kw { color: var(--accent2); }
+  .cli-desc { color: var(--muted); font-size: 14px; margin-bottom: 18px; }
+
+  /* SCHEMA */
+  .schema-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .schema-header {
+    padding: 12px 20px;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: "SF Mono", Consolas, monospace;
+  }
+  .schema-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .schema-body { padding: 20px; }
+  .schema-body pre { color: var(--text); }
+  .hl-heading { color: var(--accent2); }
+  .hl-section { color: var(--accent); }
+  .hl-mermaid { color: var(--green); }
+  .hl-table { color: var(--orange); }
+  .hl-rel { color: var(--fe-color); }
+
+  /* SCANNER TABLE */
+  .scanner-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+  }
+  .scanner-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  .scanner-card h4 {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .scanner-card:nth-child(1) h4 { color: var(--db-color); }
+  .scanner-card:nth-child(2) h4 { color: var(--api-color); }
+  .scanner-card:nth-child(3) h4 { color: var(--fe-color); }
+  .scanner-item {
+    font-size: 13px;
+    font-family: "SF Mono", Consolas, monospace;
+    color: var(--muted);
+    padding: 5px 0;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .scanner-item::before { content: "◆"; font-size: 7px; }
+  .scanner-card:nth-child(1) .scanner-item::before { color: var(--db-color); }
+  .scanner-card:nth-child(2) .scanner-item::before { color: var(--api-color); }
+  .scanner-card:nth-child(3) .scanner-item::before { color: var(--fe-color); }
+
+  /* API TYPES */
+  .types-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 14px;
+  }
+  .type-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+  }
+  .type-name {
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent2);
+    margin-bottom: 6px;
+  }
+  .type-desc { font-size: 13px; color: var(--muted); }
+  .type-fields {
+    margin-top: 8px;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.7;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+  }
+  .type-fields span.field-name { color: var(--accent); }
+  .type-fields span.field-type { color: var(--green); }
+
+  /* PRINCIPLES */
+  .principles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 16px;
+  }
+  .principle {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 22px;
+    display: flex;
+    gap: 14px;
+  }
+  .principle-num {
+    width: 32px; height: 32px; min-width: 32px;
+    border-radius: 8px;
+    background: rgba(88,166,255,0.1);
+    border: 1px solid rgba(88,166,255,0.2);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800;
+    font-size: 13px;
+    color: var(--accent);
+  }
+  .principle-content h4 { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  .principle-content p { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+  /* STATS */
+  .stats-row {
+    display: flex;
+    justify-content: center;
+    gap: 48px;
+    flex-wrap: wrap;
+    padding: 48px 0;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 64px;
+  }
+  .stat { text-align: center; }
+  .stat-num {
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: 4px;
+  }
+  .stat-num.green { color: var(--db-color); }
+  .stat-num.blue { color: var(--api-color); }
+  .stat-num.purple { color: var(--fe-color); }
+  .stat-num.orange { color: var(--orange); }
+  .stat-label { font-size: 13px; color: var(--muted); }
+
+  /* CTA */
+  #cta {
+    text-align: center;
+    background: linear-gradient(180deg, var(--bg) 0%, var(--surface) 100%);
+    border-top: 1px solid var(--border);
+  }
+  #cta h2 { margin-bottom: 14px; }
+  #cta p { color: var(--muted); margin-bottom: 32px; }
+  .cta-code {
+    display: inline-block;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 24px;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 14px;
+    color: var(--text);
+    margin-bottom: 32px;
+  }
+  .cta-code .cmd { color: var(--green); }
+
+  /* FOOTER */
+  footer {
+    text-align: center;
+    padding: 28px;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    .canvas-diagram { grid-template-columns: 1fr; }
+    .canvas-arrow { transform: rotate(90deg); }
+    .scanner-grid { grid-template-columns: 1fr; }
+    .nav-links { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">
+    <div class="logo-icon">TG</div>
+    TraceGrid
+  </div>
+  <div class="nav-links">
+    <a href="#how-it-works">How it works</a>
+    <a href="#cli">CLI</a>
+    <a href="#scanner">Scanner</a>
+    <a href="#schema">Schema</a>
+    <a href="#api">API</a>
+  </div>
+  <a href="https://github.com/GamersStop/tracegrid" class="nav-btn">GitHub →</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-badge">Open Source · TypeScript · Zero Runtime Deps</div>
+  <h1>Full-Stack Visual<br><span class="grad">Lineage Compiler</span></h1>
+  <p>
+    TraceGrid bridges your database schema, API routes, and frontend components
+    into a single <code style="color:var(--accent)">architecture.md</code> source-of-truth
+    — then serves it as an interactive JSON graph for your visual canvas.
+  </p>
+  <div class="hero-actions">
+    <a href="#cli" class="btn-primary">Get started</a>
+    <a href="https://github.com/GamersStop/tracegrid" class="btn-secondary">View on GitHub</a>
+  </div>
+
+  <!-- 3-column canvas diagram -->
+  <div class="canvas-diagram">
+    <div class="canvas-col">
+      <div class="canvas-col-header">Database ERD</div>
+      <div class="db-entity">
+        <div class="entity-name">User</div>
+        <div class="entity-fk">id · email · passwordHash</div>
+      </div>
+      <div class="db-entity">
+        <div class="entity-name">Post</div>
+        <div class="entity-fk">id · title · authorId FK</div>
+      </div>
+      <div class="db-entity">
+        <div class="entity-name">Comment</div>
+        <div class="entity-fk">id · text · postId FK</div>
+      </div>
+      <div class="db-edge">User → Post (writes)</div>
+      <div class="db-edge">Post → Comment (has)</div>
+    </div>
+    <div class="canvas-arrow">→</div>
+    <div class="canvas-col">
+      <div class="canvas-col-header">API Request Flow</div>
+      <div class="api-route"><span class="method get">GET</span> /api/posts</div>
+      <div class="api-route"><span class="method post">POST</span> /api/posts</div>
+      <div class="api-route"><span class="method get">GET</span> /api/posts/:id</div>
+      <div class="api-route"><span class="method post">POST</span> /api/users</div>
+      <div class="api-route"><span class="method delete">DEL</span> /api/posts/:id</div>
+      <div class="api-route"><span class="method patch">PATCH</span> /api/users/:id</div>
+    </div>
+    <div class="canvas-arrow">→</div>
+    <div class="canvas-col">
+      <div class="canvas-col-header">Frontend Directory</div>
+      <div class="fe-comp">
+        PostList.tsx
+        <div class="fe-call">fetch('/api/posts')</div>
+      </div>
+      <div class="fe-comp">
+        PostDetail.tsx
+        <div class="fe-call">fetch('/api/posts/:id')</div>
+      </div>
+      <div class="fe-comp">
+        UserProfile.tsx
+        <div class="fe-call">axios.get('/api/users/me')</div>
+      </div>
+      <div class="fe-comp">
+        RegisterForm.tsx
+        <div class="fe-call">fetch('/api/users')</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how-it-works">
+  <div class="container">
+    <div class="section-label">How it works</div>
+    <h2 class="section-title">Two modes. One source of truth.</h2>
+    <p class="section-sub">
+      TraceGrid operates bi-directionally. Start from an idea or scan what already exists —
+      either way, you end up with a structured, machine-readable <code>architecture.md</code>.
+    </p>
+
+    <div class="modes-grid">
+      <div class="mode-card">
+        <div class="mode-icon green">🌱</div>
+        <h3>Greenfield Mode</h3>
+        <p>
+          Give TraceGrid an idea string or a PRD document. The
+          <strong>tracegrid-architect</strong> AI mode designs the normalized
+          DB schema, API route inventory, directory structure, and request flows —
+          then writes <code>architecture.md</code> before a single line of code is written.
+        </p>
+        <span class="mode-badge green">tracegrid init</span>
+      </div>
+      <div class="mode-card">
+        <div class="mode-icon blue">🔍</div>
+        <h3>Brownfield Mode</h3>
+        <p>
+          Point TraceGrid at an existing codebase. The scanner inspects Prisma schemas,
+          SQL DDL, TypeORM entities, Express/Next.js/FastAPI routes, and React fetch hooks —
+          then compiles everything into <code>architecture.md</code>.
+        </p>
+        <span class="mode-badge blue">tracegrid scan</span>
+      </div>
+      <div class="mode-card">
+        <div class="mode-icon purple">📡</div>
+        <h3>Graph Serve Mode</h3>
+        <p>
+          <code>architecture.md</code> already exists? TraceGrid parses it directly
+          into a <code>{ nodes, edges }</code> JSON graph and serves it via HTTP —
+          hot-reload safe, ready to feed any visual canvas or analysis tool.
+        </p>
+        <span class="mode-badge purple">tracegrid serve</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<section style="padding: 40px 2rem;">
+  <div class="container">
+    <div class="stats-row">
+      <div class="stat">
+        <div class="stat-num green">33</div>
+        <div class="stat-label">Unit tests passing</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num blue">4</div>
+        <div class="stat-label">DB format scanners</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num purple">4</div>
+        <div class="stat-label">API framework scanners</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num orange">0</div>
+        <div class="stat-label">Core runtime dependencies</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num blue">6</div>
+        <div class="stat-label">Edge types in graph</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CLI -->
+<section id="cli" style="background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
+  <div class="container">
+    <div class="section-label">CLI Reference</div>
+    <h2 class="section-title">Four commands. Full coverage.</h2>
+    <p class="section-sub">All commands compile to a single Node.js executable in <code>packages/cli/dist/index.js</code>.</p>
+
+    <div class="cli-tabs">
+      <div class="cli-tab active" id="tab-init">init</div>
+      <div class="cli-tab" id="tab-scan">scan</div>
+      <div class="cli-tab" id="tab-serve">serve</div>
+      <div class="cli-tab" id="tab-validate">validate</div>
+    </div>
+
+    <div class="cli-block active" id="block-init">
+      <p class="cli-desc">Greenfield mode — generates a starter <code>architecture.md</code> from an idea string or PRD file.</p>
+      <pre><span class="comment"># From a free-text idea</span>
+<span class="cmd">node packages/cli/dist/index.js init</span> <span class="str">"A SaaS invoicing app with team workspaces"</span>
+
+<span class="comment"># From an existing PRD file</span>
+<span class="cmd">node packages/cli/dist/index.js init</span> ./docs/prd.md <span class="flag">--out</span> architecture.md
+
+<span class="comment"># With scaffold notice</span>
+<span class="cmd">node packages/cli/dist/index.js init</span> <span class="str">"Task management platform"</span> <span class="flag">--scaffold</span></pre>
+    </div>
+
+    <div class="cli-block" id="block-scan">
+      <p class="cli-desc">Brownfield mode — scan a directory and compile <code>architecture.md</code>.</p>
+      <pre><span class="comment"># Scan current directory</span>
+<span class="cmd">node packages/cli/dist/index.js scan</span> .
+
+<span class="comment"># Scan a specific backend service</span>
+<span class="cmd">node packages/cli/dist/index.js scan</span> ./apps/api <span class="flag">--out</span> api-arch.md
+
+<span class="comment"># Output:</span>
+<span class="comment">#  🔍 Scanning: /your/project</span>
+<span class="comment">#     Found: 12 DB tables, 34 API routes, 18 frontend components</span>
+<span class="comment">#  ✅ Written to: architecture.md</span></pre>
+    </div>
+
+    <div class="cli-block" id="block-serve">
+      <p class="cli-desc">Serve the graph JSON API — reads <code>architecture.md</code> on every request.</p>
+      <pre><span class="cmd">node packages/cli/dist/index.js serve</span> <span class="flag">--port</span> 4000
+
+<span class="comment"># 🟢 TraceGrid server running on http://localhost:4000</span>
+
+<span class="comment"># Available endpoints:</span>
+<span class="cmd">curl</span> http://localhost:4000/graph          <span class="comment"># { nodes, edges }</span>
+<span class="cmd">curl</span> http://localhost:4000/graph/nodes    <span class="comment"># { nodes }</span>
+<span class="cmd">curl</span> http://localhost:4000/graph/edges    <span class="comment"># { edges }</span>
+<span class="cmd">curl</span> http://localhost:4000/health         <span class="comment"># { status: "ok" }</span></pre>
+    </div>
+
+    <div class="cli-block" id="block-validate">
+      <p class="cli-desc">Validate <code>architecture.md</code> against the canonical schema and report graph statistics.</p>
+      <pre><span class="cmd">node packages/cli/dist/index.js validate</span>
+<span class="comment"># ✅ architecture.md is valid</span>
+<span class="comment">#    DB tables:        3</span>
+<span class="comment">#    Relationships:    3</span>
+<span class="comment">#    API routes:       6</span>
+<span class="comment">#    Request flows:    4</span>
+<span class="comment">#    Graph nodes:      13</span>
+<span class="comment">#    Graph edges:      13</span>
+
+<span class="cmd">node packages/cli/dist/index.js validate</span> <span class="flag">--json</span>  <span class="comment"># machine-readable</span></pre>
+    </div>
+  </div>
+</section>
+
+<!-- SCANNER -->
+<section id="scanner">
+  <div class="container">
+    <div class="section-label">Scanner</div>
+    <h2 class="section-title">Detects what you already have.</h2>
+    <p class="section-sub">
+      The scanner reads file contents only — no subprocess execution, no dynamic imports.
+      Each sub-scanner is a pure function: <code>(content, filePath) =&gt; ScanResult</code>.
+    </p>
+    <div class="scanner-grid">
+      <div class="scanner-card">
+        <h4>Database Layer</h4>
+        <div class="scanner-item">Prisma <code>.prisma</code></div>
+        <div class="scanner-item">SQL DDL <code>.sql</code></div>
+        <div class="scanner-item">TypeORM <code>@Entity</code></div>
+        <div class="scanner-item">Sequelize <code>define()</code></div>
+      </div>
+      <div class="scanner-card">
+        <h4>API Layer</h4>
+        <div class="scanner-item">Express <code>router.get/post</code></div>
+        <div class="scanner-item">Next.js App Router</div>
+        <div class="scanner-item">Next.js Pages API</div>
+        <div class="scanner-item">FastAPI <code>@router.get</code></div>
+      </div>
+      <div class="scanner-card">
+        <h4>Frontend Layer</h4>
+        <div class="scanner-item"><code>fetch()</code></div>
+        <div class="scanner-item"><code>axios.get/post/put</code></div>
+        <div class="scanner-item"><code>useSWR()</code></div>
+        <div class="scanner-item"><code>useQuery()</code></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SCHEMA -->
+<section id="schema" style="background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
+  <div class="container">
+    <div class="section-label">architecture.md Schema</div>
+    <h2 class="section-title">Four sections. Always required.</h2>
+    <p class="section-sub">
+      The canonical schema is enforced by a deterministic parser.
+      A missing or malformed section throws a <code>ParseError</code> — never silent partial results.
+    </p>
+
+    <div class="schema-section">
+      <div class="schema-header">
+        <div class="schema-dot" style="background:var(--db-color)"></div>
+        § Database Schema — Mermaid erDiagram block
+      </div>
+      <div class="schema-body">
+        <pre><span class="hl-heading">## Database Schema</span>
+
+<span class="hl-mermaid">```mermaid
+erDiagram
+  User {
+    int    id    PK
+    string email
+    string passwordHash
+  }
+  Post {
+    int    id       PK
+    string title
+    int    authorId FK
+  }
+  User ||--o{ Post : "writes"
+```</span></pre>
+      </div>
+    </div>
+
+    <div class="schema-section">
+      <div class="schema-header">
+        <div class="schema-dot" style="background:var(--api-color)"></div>
+        § API Routes — Markdown table
+      </div>
+      <div class="schema-body">
+        <pre><span class="hl-heading">## API Routes</span>
+
+<span class="hl-table">| Method | Path           | Handler                | Description     |
+|--------|----------------|------------------------|-----------------|
+| GET    | /api/posts     | postController.list    | List all posts  |
+| POST   | /api/posts     | postController.create  | Create a post   |
+| GET    | /api/posts/:id | postController.get     | Get single post |</span></pre>
+      </div>
+    </div>
+
+    <div class="schema-section">
+      <div class="schema-header">
+        <div class="schema-dot" style="background:var(--orange)"></div>
+        § Directory Structure — Fenced tree
+      </div>
+      <div class="schema-body">
+        <pre><span class="hl-heading">## Directory Structure</span>
+
+<span class="hl-mermaid">```
+myapp/
+├── src/
+│   ├── controllers/
+│   │   └── postController.ts
+│   └── models/
+│       └── Post.ts
+└── package.json
+```</span></pre>
+      </div>
+    </div>
+
+    <div class="schema-section">
+      <div class="schema-header">
+        <div class="schema-dot" style="background:var(--fe-color)"></div>
+        § Request Flows — Markdown table
+      </div>
+      <div class="schema-body">
+        <pre><span class="hl-heading">## Request Flows</span>
+
+<span class="hl-table">| Feature    | Frontend Component | Endpoint            | DB Tables   |
+|------------|--------------------|---------------------|-------------|
+| List Posts | PostList           | GET /api/posts      | Post, User  |
+| Create Post| PostForm           | POST /api/posts     | Post        |
+| View Post  | PostDetail         | GET /api/posts/:id  | Post, Comment |</span></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- API TYPES -->
+<section id="api">
+  <div class="container">
+    <div class="section-label">Core API</div>
+    <h2 class="section-title">TypeScript-first. Zero dependencies.</h2>
+    <p class="section-sub">
+      Import from <code>@tracegrid/core</code> in any TypeScript or Node.js project.
+      All public functions have explicit return types. No <code>any</code>.
+    </p>
+
+    <div class="types-grid">
+      <div class="type-card">
+        <div class="type-name">TraceNode</div>
+        <div class="type-desc">A single entity in the graph — DB table, API endpoint, or frontend component.</div>
+        <div class="type-fields">
+          <span class="field-name">id</span>: <span class="field-type">string</span><br>
+          <span class="field-name">label</span>: <span class="field-type">string</span><br>
+          <span class="field-name">tier</span>: <span class="field-type">"database" | "api" | "frontend"</span><br>
+          <span class="field-name">kind</span>: <span class="field-type">"table" | "endpoint" | "component"</span><br>
+          <span class="field-name">meta</span>: <span class="field-type">Record&lt;string, unknown&gt;</span>
+        </div>
+      </div>
+      <div class="type-card">
+        <div class="type-name">TraceEdge</div>
+        <div class="type-desc">A directed relationship between two nodes with a semantic type.</div>
+        <div class="type-fields">
+          <span class="field-name">source</span>: <span class="field-type">string</span><br>
+          <span class="field-name">target</span>: <span class="field-type">string</span><br>
+          <span class="field-name">type</span>: <span class="field-type">"foreign-key" | "calls"</span><br>
+          <span class="field-name">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>&nbsp;<span class="field-type">| "reads" | "writes"</span><br>
+          <span class="field-name">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>&nbsp;<span class="field-type">| "renders" | "contains"</span>
+        </div>
+      </div>
+      <div class="type-card">
+        <div class="type-name">ArchitectureSpec</div>
+        <div class="type-desc">Full in-memory representation of <code>architecture.md</code>.</div>
+        <div class="type-fields">
+          <span class="field-name">database</span>: <span class="field-type">DatabaseSchema</span><br>
+          <span class="field-name">routes</span>: <span class="field-type">APIRoute[]</span><br>
+          <span class="field-name">directoryTree</span>: <span class="field-type">string</span><br>
+          <span class="field-name">requestFlows</span>: <span class="field-type">RequestFlow[]</span>
+        </div>
+      </div>
+      <div class="type-card">
+        <div class="type-name">TraceGraph</div>
+        <div class="type-desc">The structured graph format consumed by the visual canvas.</div>
+        <div class="type-fields">
+          <span class="field-name">nodes</span>: <span class="field-type">TraceNode[]</span><br>
+          <span class="field-name">edges</span>: <span class="field-type">TraceEdge[]</span>
+        </div>
+      </div>
+      <div class="type-card">
+        <div class="type-name">parseToGraph()</div>
+        <div class="type-desc">Convenience: parse <code>architecture.md</code> string → <code>TraceGraph</code> in one call.</div>
+        <div class="type-fields">
+          <span class="field-name">param</span>&nbsp;&nbsp;<span class="field-type">source: string</span><br>
+          <span class="field-name">returns</span>&nbsp;<span class="field-type">TraceGraph</span>
+        </div>
+      </div>
+      <div class="type-card">
+        <div class="type-name">scanDirectory()</div>
+        <div class="type-desc">Scan a project directory. Returns raw DB, API, and frontend lineage data.</div>
+        <div class="type-fields">
+          <span class="field-name">param</span>&nbsp;&nbsp;<span class="field-type">dir: string</span><br>
+          <span class="field-name">returns</span>&nbsp;<span class="field-type">ScanResult</span><br>
+          &nbsp;&nbsp;<span class="field-name">db</span>: <span class="field-type">DBScanResult</span><br>
+          &nbsp;&nbsp;<span class="field-name">api</span>: <span class="field-type">APIScanResult</span><br>
+          &nbsp;&nbsp;<span class="field-name">frontend</span>: <span class="field-type">FrontendScanResult</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DESIGN PRINCIPLES -->
+<section style="background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
+  <div class="container">
+    <div class="section-label">Design Principles</div>
+    <h2 class="section-title">Opinionated by design.</h2>
+    <p class="section-sub">Every architectural decision in TraceGrid follows these five constraints.</p>
+    <div class="principles-grid">
+      <div class="principle">
+        <div class="principle-num">1</div>
+        <div class="principle-content">
+          <h4>Schema-first</h4>
+          <p><code>architecture.md</code> is committed before any code. No DB migration without a schema entry. No API endpoint without a route table row.</p>
+        </div>
+      </div>
+      <div class="principle">
+        <div class="principle-num">2</div>
+        <div class="principle-content">
+          <h4>Deterministic parsing</h4>
+          <p>Identical input always produces identical <code>{ nodes, edges }</code> output. No heuristics, no probabilistic guessing in the parser layer.</p>
+        </div>
+      </div>
+      <div class="principle">
+        <div class="principle-num">3</div>
+        <div class="principle-content">
+          <h4>Pure scanner functions</h4>
+          <p>Every sub-scanner is <code>(content, filePath) =&gt; ScanResult</code>. No subprocess execution, no dynamic imports, no side effects.</p>
+        </div>
+      </div>
+      <div class="principle">
+        <div class="principle-num">4</div>
+        <div class="principle-content">
+          <h4>Zero core dependencies</h4>
+          <p><code>@tracegrid/core</code> has no runtime npm dependencies. Only the Node.js standard library. CLI adds only <code>express</code> and <code>commander</code>.</p>
+        </div>
+      </div>
+      <div class="principle">
+        <div class="principle-num">5</div>
+        <div class="principle-content">
+          <h4>Strict TypeScript</h4>
+          <p><code>noUncheckedIndexedAccess</code>, <code>strict: true</code>, explicit return types on all public functions. No <code>any</code> in core types or parser.</p>
+        </div>
+      </div>
+      <div class="principle">
+        <div class="principle-num">6</div>
+        <div class="principle-content">
+          <h4>Round-trip safety</h4>
+          <p>The generator must produce output that the parser can parse without loss. Same structure in, same structure out — always.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section id="cta">
+  <div class="container">
+    <h2 class="section-title">Start mapping your codebase</h2>
+    <p>Install, scan your project, and have a graph JSON API running in under 60 seconds.</p>
+    <div class="cta-code">
+      <span class="cmd">git clone</span> https://github.com/GamersStop/tracegrid.git &amp;&amp; cd tracegrid &amp;&amp; npm install &amp;&amp; npm run build
+    </div>
+    <br>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+      <a href="https://github.com/GamersStop/tracegrid" class="btn-primary">View on GitHub →</a>
+      <a href="#cli" class="btn-secondary">CLI Reference</a>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <span style="color:var(--muted)">TraceGrid — MIT License</span>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/GamersStop/tracegrid">GitHub</a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/GamersStop/tracegrid/blob/main/README.md">Docs</a>
+  <br><br>
+  <span style="font-size:12px;color:#484f58">Made with IBM Bob</span>
+</footer>
+
+<style>
+  /* Tab interactivity via CSS :target trick would require JS; use inline labels */
+</style>
+<script>
+  // Tab switching for CLI section
+  const tabs = ['init','scan','serve','validate'];
+  tabs.forEach(function(t) {
+    var tab = document.getElementById('tab-' + t);
+    var block = document.getElementById('block-' + t);
+    if (tab && block) {
+      tab.addEventListener('click', function() {
+        tabs.forEach(function(o) {
+          var ot = document.getElementById('tab-' + o);
+          var ob = document.getElementById('block-' + o);
+          if (ot) ot.classList.remove('active');
+          if (ob) ob.classList.remove('active');
+        });
+        tab.classList.add('active');
+        block.classList.add('active');
+      });
+    }
+  });
+</script>
+
+</body>
+</html>

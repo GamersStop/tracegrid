@@ -1,0 +1,54 @@
+# TraceGrid — Bob AI Coding Rules
+
+## 1. Schema-First Development
+- **Never** write a DB migration, model, or API handler before the `architecture.md` `## Database Schema` section is committed.
+- **Never** add a new API endpoint without a corresponding row in the `## API Routes` table.
+- **Never** create a new frontend component that calls an API without a matching entry in `## Request Flows`.
+- When in doubt, update `architecture.md` first, then write code.
+
+## 2. AST & Scanning Rules
+- The scanner (`packages/core/src/scanner.ts`) must operate on **file contents only** — no spawning subprocesses, no importing project code at runtime.
+- Each scanner sub-function must be a **pure function**: `(content: string, filePath: string) => ScanResult`.
+- Regex patterns used for scanning must be **named and documented** with an inline comment explaining what they match and why.
+- The scanner must **never throw** on unrecognised file formats — return an empty result instead.
+
+## 3. Parser Strictness
+- The parser (`packages/core/src/parser.ts`) must be **deterministic**: same input → same output, always.
+- Sections in `architecture.md` are identified by **exact heading text** (case-sensitive). Do not use fuzzy matching.
+- Mermaid blocks are extracted between ` ```mermaid ` and ` ``` ` delimiters only. Do not attempt to parse inline Mermaid.
+- If a required section is missing, the parser must throw a descriptive `ParseError` — not silently return partial data.
+
+## 4. Type Safety
+- All public functions in `packages/core` must have **explicit TypeScript return types**.
+- No `any` types in `packages/core/src/types.ts` or `packages/core/src/parser.ts`.
+- Use `unknown` with a type guard instead of casting with `as`.
+- Interfaces are preferred over `type` aliases for object shapes.
+
+## 5. Code Modularity
+- Each file in `packages/core/src/` has **one responsibility**. Do not add parser logic to `scanner.ts` or vice versa.
+- Exports from `packages/core` flow through `src/index.ts` only. No deep imports (`packages/core/src/parser`) from outside the package.
+- The CLI (`packages/cli`) depends on `packages/core` via its public API only.
+
+## 6. Error Handling
+- Use typed error classes (`class ParseError extends Error`, `class ScanError extends Error`).
+- Never swallow errors silently. Log with context (`file`, `line`, `section`) before re-throwing or returning.
+- CLI commands must exit with code `1` on error and print a human-readable message to stderr.
+
+## 7. File Generation
+- The generator (`packages/core/src/generator.ts`) must produce output that the parser can round-trip without loss.
+- Use template literals with explicit section headings — no string concatenation of partial sections.
+- Generated `architecture.md` must always include all four required sections (even if empty tables/blocks).
+
+## 8. Testing Expectations
+- New scanner sub-functions must have at least one unit test with a synthetic input string.
+- Parser tests must include a valid full `architecture.md` fixture and at least one error-path case.
+- Tests live in `packages/core/src/__tests__/` and use the project's test runner.
+
+## 9. Dependency Policy
+- `packages/core`: **zero** runtime npm dependencies. Only `devDependencies` for TypeScript/testing.
+- `packages/cli`: only `commander`, `express`, and `@types/*` are permitted.
+- Do not introduce additional dependencies without explicit approval.
+
+## 10. Commit Hygiene
+- Each commit must touch either `architecture.md` OR code files — not both in the same commit.
+- Commit messages follow: `type(scope): short description` (e.g. `feat(scanner): add Prisma model extractor`).
