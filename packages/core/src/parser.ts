@@ -98,6 +98,8 @@ export function buildGraph(spec: ArchitectureSpec): TraceGraph {
   }
 
   const seenComponents = new Set<string>();
+  const seenMiddleware = new Set<string>();
+
   for (const flow of spec.requestFlows) {
     const compId = `frontend:component:${flow.frontendComponent}`;
     if (!seenComponents.has(compId)) {
@@ -115,13 +117,66 @@ export function buildGraph(spec: ArchitectureSpec): TraceGraph {
     const method = parts[0] ?? "";
     const routePath = parts.slice(1).join(" ");
     const apiNodeId = `api:endpoint:${method}:${routePath}`;
-    edges.push({
-      id: `edge:calls:${flow.frontendComponent}:${flow.endpoint}`,
-      source: compId,
-      target: apiNodeId,
-      type: "calls",
-      label: flow.feature,
-    });
+
+    // Build middleware nodes and chain edges:
+    //   frontend → mw[0] → mw[1] → … → api endpoint
+    const mwLayers = flow.middlewareLayers ?? [];
+    if (mwLayers.length > 0) {
+      // Ensure each middleware node exists exactly once
+      for (const mw of mwLayers) {
+        const mwId = `middleware:middleware:${mw}`;
+        if (!seenMiddleware.has(mwId)) {
+          seenMiddleware.add(mwId);
+          nodes.push({
+            id: mwId,
+            label: mw,
+            tier: "middleware",
+            kind: "middleware",
+            meta: {},
+          });
+        }
+      }
+
+      // frontend → first middleware
+      const firstMwId = `middleware:middleware:${mwLayers[0]}`;
+      edges.push({
+        id: `edge:calls:${flow.frontendComponent}:${mwLayers[0]}`,
+        source: compId,
+        target: firstMwId,
+        type: "calls",
+        label: flow.feature,
+      });
+
+      // middleware[i] → middleware[i+1]
+      for (let i = 0; i < mwLayers.length - 1; i++) {
+        const fromMwId = `middleware:middleware:${mwLayers[i]}`;
+        const toMwId = `middleware:middleware:${mwLayers[i + 1]}`;
+        edges.push({
+          id: `edge:calls:${mwLayers[i]}:${mwLayers[i + 1]}`,
+          source: fromMwId,
+          target: toMwId,
+          type: "calls",
+        });
+      }
+
+      // last middleware → api endpoint
+      const lastMwId = `middleware:middleware:${mwLayers[mwLayers.length - 1]}`;
+      edges.push({
+        id: `edge:calls:${mwLayers[mwLayers.length - 1]}:${flow.endpoint}`,
+        source: lastMwId,
+        target: apiNodeId,
+        type: "calls",
+      });
+    } else {
+      // No middleware — direct frontend → api edge
+      edges.push({
+        id: `edge:calls:${flow.frontendComponent}:${flow.endpoint}`,
+        source: compId,
+        target: apiNodeId,
+        type: "calls",
+        label: flow.feature,
+      });
+    }
 
     for (const table of flow.dbTables) {
       edges.push({
@@ -308,6 +363,19 @@ function parseFlowsSection(body: string): RequestFlow[] {
   const flows: RequestFlow[] = [];
   const lines = body.split("\n");
 
+  // Detect whether the table has a Middleware column by inspecting the header row.
+  // The canonical 5-column header is:
+  //   | Feature | Frontend Component | Middleware | Endpoint | DB Tables |
+  // The legacy 4-column header (no middleware) is still accepted for back-compat.
+  let hasMiddlewareCol = false;
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (line.startsWith("| Feature")) {
+      hasMiddlewareCol = line.toLowerCase().includes("middleware");
+      break;
+    }
+  }
+
   for (const rawLine of lines) {
     const line = rawLine.trim();
     if (!line.startsWith("|") || line.startsWith("| Feature") || /^\|[-| ]+\|$/.test(line)) {
@@ -321,16 +389,35 @@ function parseFlowsSection(body: string): RequestFlow[] {
 
     if (cells.length < 3) continue;
 
-    const feature = cells[0] ?? "";
-    const frontendComponent = cells[1] ?? "";
-    const endpoint = cells[2] ?? "";
-    const dbTablesRaw = cells[3] ?? "";
+    let feature: string;
+    let frontendComponent: string;
+    let middlewareLayers: string[];
+    let endpoint: string;
+    let dbTablesRaw: string;
+
+    if (hasMiddlewareCol) {
+      // 5-column format: Feature | Frontend | Middleware | Endpoint | DB Tables
+      feature = cells[0] ?? "";
+      frontendComponent = cells[1] ?? "";
+      const mwRaw = cells[2] ?? "";
+      middlewareLayers = mwRaw.split(",").map((m) => m.trim()).filter(Boolean);
+      endpoint = cells[3] ?? "";
+      dbTablesRaw = cells[4] ?? "";
+    } else {
+      // 4-column legacy format: Feature | Frontend | Endpoint | DB Tables
+      feature = cells[0] ?? "";
+      frontendComponent = cells[1] ?? "";
+      middlewareLayers = [];
+      endpoint = cells[2] ?? "";
+      dbTablesRaw = cells[3] ?? "";
+    }
+
     const dbTables = dbTablesRaw
       .split(",")
       .map((t) => t.trim())
       .filter(Boolean);
 
-    flows.push({ feature, frontendComponent, endpoint, dbTables });
+    flows.push({ feature, frontendComponent, middlewareLayers, endpoint, dbTables });
   }
 
   return flows;

@@ -8,13 +8,14 @@
 // ---------------------------------------------------------------------------
 
 /** The tier a node belongs to in the 3-column canvas. */
-export type NodeTier = "database" | "api" | "frontend";
+export type NodeTier = "database" | "api" | "middleware" | "frontend";
 
 /** The kind of entity a node represents within its tier. */
 export type NodeKind =
   | "table"       // DB entity
   | "column"      // DB column (child of table)
   | "endpoint"    // API route
+  | "middleware"  // Middleware service / layer
   | "component"   // Frontend React/Vue component
   | "directory"   // Directory in the project tree
   | "file";       // Source file
@@ -124,6 +125,12 @@ export interface RequestFlow {
   feature: string;
   /** Frontend component that initiates the request. */
   frontendComponent: string;
+  /**
+   * Ordered list of middleware layers traversed before reaching the endpoint.
+   * e.g. ["AuthMiddleware", "RateLimiter"]
+   * Empty array when no middleware is declared.
+   */
+  middlewareLayers: string[];
   /** The API endpoint called, e.g. `POST /api/users`. */
   endpoint: string;
   /** Comma-separated list of DB tables touched. */

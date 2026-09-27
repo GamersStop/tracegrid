@@ -99,16 +99,16 @@ function generateFlowsSection(flows: RequestFlow[]): string {
   if (flows.length === 0) {
     return (
       "## Request Flows\n\n" +
-      "| Feature | Frontend Component | Endpoint | DB Tables |\n" +
-      "|---------|--------------------|----------|-----------|\n"
+      "| Feature | Frontend Component | Middleware | Endpoint | DB Tables |\n" +
+      "|---------|--------------------|------------------------------------|----------|-----------|\n"
     );
   }
 
-  const header = "| Feature | Frontend Component | Endpoint | DB Tables |";
-  const separator = "|---------|--------------------|----------|-----------|";
+  const header = "| Feature | Frontend Component | Middleware | Endpoint | DB Tables |";
+  const separator = "|---------|--------------------|------------------------------------|----------|-----------| ";
   const rows = flows.map(
     (f) =>
-      `| ${f.feature} | ${f.frontendComponent} | ${f.endpoint} | ${f.dbTables.join(", ")} |`,
+      `| ${f.feature} | ${f.frontendComponent} | ${(f.middlewareLayers ?? []).join(", ")} | ${f.endpoint} | ${f.dbTables.join(", ")} |`,
   );
 
   return `## Request Flows\n\n${[header, separator, ...rows].join("\n")}`;
@@ -245,9 +245,13 @@ function synthesizeRequestFlows(
           ? route.dbTables
           : inferDbTables(route?.handler ?? "", apiPath, tableNames);
 
+      // Middleware layers are not detectable from static frontend/API scanning alone.
+      // They are populated when architecture.md already contains a Middleware column
+      // (round-trip), or when explicitly authored. Scanner output leaves this empty.
       flows.push({
         feature,
         frontendComponent: component,
+        middlewareLayers: [],
         endpoint,
         dbTables: tracedTables,
       });
